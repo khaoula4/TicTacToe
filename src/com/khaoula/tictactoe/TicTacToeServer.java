@@ -8,12 +8,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.Map;
 import java.util.UUID;
 
-
-
 public class TicTacToeServer extends UnicastRemoteObject implements TicTacToeGame {
-
-    private ConcurrentHashMap<UUID, char[][]> gameBoards = new ConcurrentHashMap<>();
-    private ConcurrentHashMap<UUID, Character> currentPlayers = new ConcurrentHashMap<>();
     private Map<UUID, GameSession> sessions = new ConcurrentHashMap<>();
     private UUID waitingPlayer = null; // Stores the ID of a player waiting for an opponent
 
@@ -24,102 +19,98 @@ public class TicTacToeServer extends UnicastRemoteObject implements TicTacToeGam
     @Override
     public UUID startNewGame() throws RemoteException {
         UUID playerId = UUID.randomUUID();
+        System.out.println("startNewGame called. Generated player ID: " + playerId);
+
         if (waitingPlayer == null) {
-            // No waiting player, create new session
-            waitingPlayer = playerId;
+            waitingPlayer = playerId; // This player now waits for an opponent
+            System.out.println("No waiting player. New player " + playerId + " is now waiting.");
             return playerId;
         } else {
-            // Pair with waiting player
-            GameSession session = new GameSession(waitingPlayer);
+            GameSession session = new GameSession(waitingPlayer, playerId);
             sessions.put(session.getSessionId(), session);
-            UUID opponentId = waitingPlayer;
-            waitingPlayer = null;
-            return opponentId;
+            System.out.println("New session created. Session ID: " + session.getSessionId() + " with players " + waitingPlayer + " and " + playerId);
+            waitingPlayer = null; // Reset waitingPlayer
+            return session.getSessionId(); // Return the session ID to both players
         }
     }
- 
 
     @Override
     public synchronized void makeMove(UUID sessionId, int x, int y, char playerSymbol) throws RemoteException {
+        System.out.println("makeMove called. Session ID: " + sessionId + ", Coordinates: (" + x + ", " + y + "), Player Symbol: " + playerSymbol);
         GameSession session = sessions.get(sessionId);
+
         if (session != null) {
-            session.makeMove(x, y, playerSymbol); // Delegating the move to the GameSession
+            session.makeMove(x, y, playerSymbol);
         } else {
+            System.out.println("Error: Session not found for ID: " + sessionId);
             throw new RemoteException("Game session not found for ID: " + sessionId);
         }
     }
 
-    
     @Override
-    public char[][] getBoard(UUID gameId) throws RemoteException {
-        return gameBoards.get(gameId);
+    public char[][] getBoard(UUID sessionId) throws RemoteException {
+        System.out.println("getBoard called. Session ID: " + sessionId);
+        GameSession session = sessions.get(sessionId);
+
+        if (session != null) {
+            return session.getBoard();
+        } else {
+            System.out.println("Error: Session not found for ID: " + sessionId);
+            throw new RemoteException("Game session not found for ID: " + sessionId);
+        }
     }
 
     @Override
-    public String checkStatus(UUID gameId) throws RemoteException {
-        return determineGameStatus(gameBoards.get(gameId));
+    public String checkStatus(UUID sessionId) throws RemoteException {
+        System.out.println("checkStatus called. Session ID: " + sessionId);
+        GameSession session = sessions.get(sessionId);
+
+        if (session != null) {
+            return session.checkStatus();
+        } else {
+            System.out.println("Error: Session not found for ID: " + sessionId);
+            throw new RemoteException("Game session not found for ID: " + sessionId);
+        }
     }
 
-    private String determineGameStatus(char[][] board) {
-        // Check rows, columns, diagonals for a win
-        if (isWinningCondition(board, 'X')) {
-            return "Player X Wins!";
-        } else if (isWinningCondition(board, 'O')) {
-            return "Player O Wins!";
-        } else if (isBoardFull(board)) {
-            return "Draw!";
-        }
-        return "In Progress";
-    }
-
-    private boolean isWinningCondition(char[][] board, char player) {
-        // Check rows, columns and diagonals
-        for (int i = 0; i < 3; i++) {
-            if (board[i][0] == player && board[i][1] == player && board[i][2] == player) {
-                return true;
-            }
-            if (board[0][i] == player && board[1][i] == player && board[2][i] == player) {
-                return true;
-            }
-        }
-        if (board[0][0] == player && board[1][1] == player && board[2][2] == player) {
-            return true;
-        }
-        if (board[0][2] == player && board[1][1] == player && board[2][0] == player) {
-            return true;
-        }
-        return false;
-    }
-
-    private boolean isBoardFull(char[][] board) {
-        for (char[] row : board) {
-            for (char cell : row) {
-                if (cell == ' ') {
-                    return false;
-                }
-            }
-        }
-        return true;
-    }
-    
     @Override
-    public synchronized void restartGame(UUID gameId) throws RemoteException {
-        char[][] board = new char[3][3];
-        for (int i = 0; i < 3; i++) {
-            for (int j = 0; j < 3; j++) {
-                board[i][j] = ' ';
-            }
+    public synchronized void restartGame(UUID sessionId) throws RemoteException {
+        System.out.println("restartGame called. Session ID: " + sessionId);
+        GameSession session = sessions.get(sessionId);
+
+        if (session != null) {
+            session.restartGame();
+        } else {
+            System.out.println("Error: Session not found for ID: " + sessionId);
+            throw new RemoteException("Game session not found for ID: " + sessionId);
         }
-        gameBoards.put(gameId, board);
-        currentPlayers.put(gameId, 'X'); // X starts first
     }
+    @Override
+    public void joinGame(UUID sessionId, UUID playerId) throws RemoteException {
+        System.out.println("joinGame called. Session ID: " + sessionId + ", Player ID: " + playerId);
+        GameSession session = sessions.get(sessionId);
+
+        if (session != null) {
+            // Check if the session already has two players
+            if (session.getPlayer2() == null) {
+                session.setPlayer2(playerId);
+                System.out.println("Player " + playerId + " joined session " + sessionId);
+            } else {
+                System.out.println("Error: Session " + sessionId + " already has two players.");
+                throw new RemoteException("Session already full.");
+            }
+        } else {
+            System.out.println("Error: Session not found for ID: " + sessionId);
+            throw new RemoteException("Game session not found for ID: " + sessionId);
+        }
+    }
+
 
     public static void main(String[] args) {
         try {
-        	LocateRegistry.createRegistry(1099); // Start RMI registry on port 1099
-        	TicTacToeGame game = new TicTacToeServer();
-        	Naming.rebind("//0.0.0.0:1099/TicTacToeGame", game);
-
+            LocateRegistry.createRegistry(1099);
+            TicTacToeGame game = new TicTacToeServer();
+            Naming.rebind("//0.0.0.0:1099/TicTacToeGame", game);
             System.out.println("Server is ready.");
         } catch (Exception e) {
             System.err.println("Server exception: " + e.toString());
@@ -127,3 +118,4 @@ public class TicTacToeServer extends UnicastRemoteObject implements TicTacToeGam
         }
     }
 }
+

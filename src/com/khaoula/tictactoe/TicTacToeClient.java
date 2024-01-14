@@ -19,12 +19,34 @@ public class TicTacToeClient {
     public TicTacToeClient() {
         try {
             game = (TicTacToeGame) Naming.lookup("//localhost/TicTacToeGame");
-            sessionId = game.startNewGame(); // Start a new game session and store session ID
+
+            // Initial prompt to the user
+            Object[] options = {"Start New Game", "Join Existing Game"};
+            int choice = JOptionPane.showOptionDialog(null, 
+                "Do you want to start a new game or join an existing one?", 
+                "Tic-Tac-Toe Game", 
+                JOptionPane.YES_NO_OPTION, 
+                JOptionPane.QUESTION_MESSAGE, 
+                null, options, options[0]);
+
+            if (choice == JOptionPane.YES_OPTION) {
+                // Start a new game
+                sessionId = game.startNewGame();
+                JOptionPane.showMessageDialog(null, "Your session ID: " + sessionId.toString() 
+                    + "\nShare this ID with another player to join the game.");
+            } else {
+                // Join an existing game
+                String sessionIdString = JOptionPane.showInputDialog("Enter the Session ID:");
+                sessionId = UUID.fromString(sessionIdString);
+                // Add a method in the server interface to join an existing game if needed
+            }
+
+            // Continue setting up the UI
+            initializeUI();
         } catch (Exception e) {
             System.err.println("Client exception: " + e.toString());
             e.printStackTrace();
         }
-        initializeUI();
     }
 
     private void initializeUI() {
@@ -78,10 +100,12 @@ public class TicTacToeClient {
         @Override
         public void actionPerformed(ActionEvent e) {
             try {
-                game.makeMove(sessionId, x, y, currentPlayerSymbol); // Use sessionId
-                updateBoard();
-                checkGameStatus();
-                // TODO: Handle turn switching logic
+                if (currentPlayerSymbol == 'X' || currentPlayerSymbol == 'O') { // Check if it's this client's turn
+                    game.makeMove(sessionId, x, y, currentPlayerSymbol);
+                    updateBoard();
+                    checkGameStatus();
+                    currentPlayerSymbol = '\0'; // Reset the symbol to prevent further moves until updated
+                }
             } catch (Exception ex) {
                 ex.printStackTrace();
             }
@@ -113,8 +137,18 @@ public class TicTacToeClient {
         } catch (Exception e) {
             e.printStackTrace();
         }
+        // Additional code to handle enabling/disabling buttons based on the current player
+        handleButtonEnabling();
     }
 
+    private void handleButtonEnabling() {
+        boolean isMyTurn = (currentPlayerSymbol == 'X' || currentPlayerSymbol == 'O');
+        for (int i = 0; i < 3; i++) {
+            for (int j = 0; j < 3; j++) {
+                buttons[i][j].setEnabled(isMyTurn && buttons[i][j].getText().equals(" "));
+            }
+        }
+    }
     private void checkGameStatus() {
         try {
             String status = game.checkStatus(sessionId); // Use sessionId

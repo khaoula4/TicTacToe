@@ -11,4 +11,5 @@ public interface TicTacToeGame extends Remote {
     char[][] getBoard(UUID gameId) throws RemoteException;
     String checkStatus(UUID gameId) throws RemoteException;
     void restartGame(UUID gameId) throws RemoteException;
+    void joinGame(UUID sessionId, UUID playerId) throws RemoteException;
 }
