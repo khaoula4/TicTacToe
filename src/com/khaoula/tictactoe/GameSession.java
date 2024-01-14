@@ -31,6 +31,7 @@ public class GameSession {
         if (board[x][y] == ' ' && playerSymbol == currentPlayer) {
             board[x][y] = playerSymbol;
             currentPlayer = (currentPlayer == 'X') ? 'O' : 'X'; // Switch turn
+            // Additional logic (like checking for game end conditions) can be added here
         }
     }
 

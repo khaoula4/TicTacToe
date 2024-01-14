@@ -40,15 +40,16 @@ public class TicTacToeServer extends UnicastRemoteObject implements TicTacToeGam
  
 
     @Override
-    public synchronized void makeMove(UUID gameId, int x, int y, char playerSymbol) throws RemoteException {
-        char[][] board = gameBoards.get(gameId);
-        if (board[x][y] == ' ' && playerSymbol == currentPlayers.get(gameId)) {
-            board[x][y] = playerSymbol;
-            char nextPlayer = (playerSymbol == 'X') ? 'O' : 'X';
-            currentPlayers.put(gameId, nextPlayer);
+    public synchronized void makeMove(UUID sessionId, int x, int y, char playerSymbol) throws RemoteException {
+        GameSession session = sessions.get(sessionId);
+        if (session != null) {
+            session.makeMove(x, y, playerSymbol); // Delegating the move to the GameSession
+        } else {
+            throw new RemoteException("Game session not found for ID: " + sessionId);
         }
     }
 
+    
     @Override
     public char[][] getBoard(UUID gameId) throws RemoteException {
         return gameBoards.get(gameId);
@@ -115,9 +116,9 @@ public class TicTacToeServer extends UnicastRemoteObject implements TicTacToeGam
 
     public static void main(String[] args) {
         try {
-        	LocateRegistry.createRegistry(1100); // Start RMI registry on port 1099
+        	LocateRegistry.createRegistry(1099); // Start RMI registry on port 1099
         	TicTacToeGame game = new TicTacToeServer();
-        	Naming.rebind("//0.0.0.0:1100/TicTacToeGame", game);
+        	Naming.rebind("//0.0.0.0:1099/TicTacToeGame", game);
 
             System.out.println("Server is ready.");
         } catch (Exception e) {
