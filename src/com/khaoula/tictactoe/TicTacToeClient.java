@@ -3,7 +3,6 @@ package com.khaoula.tictactoe;
 import java.rmi.Naming;
 import java.util.UUID;
 import javax.swing.*;
-
 import java.awt.Color;
 import java.awt.GridLayout;
 import java.awt.event.ActionListener;
@@ -11,7 +10,7 @@ import java.awt.event.ActionEvent;
 
 public class TicTacToeClient {
     private TicTacToeGame game;
-    private UUID currentGameId;
+    private UUID sessionId; // Session ID for the game
     private char currentPlayerSymbol = 'X'; // Start with player 'X'
     private JButton[][] buttons = new JButton[3][3]; // Buttons for the board
     private JFrame frame; 
@@ -19,8 +18,8 @@ public class TicTacToeClient {
 
     public TicTacToeClient() {
         try {
-        	game = (TicTacToeGame) Naming.lookup("//localhost/TicTacToeGame");
-            currentGameId = game.startNewGame(); // Start a new game session
+            game = (TicTacToeGame) Naming.lookup("//localhost/TicTacToeGame");
+            sessionId = game.startNewGame(); // Start a new game session and store session ID
         } catch (Exception e) {
             System.err.println("Client exception: " + e.toString());
             e.printStackTrace();
@@ -60,7 +59,7 @@ public class TicTacToeClient {
 
     private void restartGame() {
         try {
-            game.restartGame(currentGameId);
+            game.restartGame(sessionId); // Use sessionId
             updateBoard();
         } catch (Exception e) {
             e.printStackTrace();
@@ -70,34 +69,28 @@ public class TicTacToeClient {
     private class ButtonListener implements ActionListener {
         private final int x;
         private final int y;
-     
 
         public ButtonListener(int x, int y) {
             this.x = x;
             this.y = y;
-          
         }
 
         @Override
         public void actionPerformed(ActionEvent e) {
             try {
-                char[][] board = game.getBoard(currentGameId);
-                if (board[x][y] == ' ') {
-                    game.makeMove(currentGameId, x, y, currentPlayerSymbol);
-                    updateBoard();
-                    checkGameStatus();
-                    currentPlayerSymbol = currentPlayerSymbol == 'X' ? 'O' : 'X'; // Switch turn only if move was valid
-                }
+                game.makeMove(sessionId, x, y, currentPlayerSymbol); // Use sessionId
+                updateBoard();
+                checkGameStatus();
+                // TODO: Handle turn switching logic
             } catch (Exception ex) {
                 ex.printStackTrace();
             }
         }
     }
 
-
     private void updateBoard() {
         try {
-            char[][] board = game.getBoard(currentGameId);
+            char[][] board = game.getBoard(sessionId); // Use sessionId
             for (int i = 0; i < 3; i++) {
                 for (int j = 0; j < 3; j++) {
                     buttons[i][j].setText(Character.toString(board[i][j]));
@@ -122,10 +115,9 @@ public class TicTacToeClient {
         }
     }
 
-
     private void checkGameStatus() {
         try {
-            String status = game.checkStatus(currentGameId);
+            String status = game.checkStatus(sessionId); // Use sessionId
             if (!"In Progress".equals(status)) {
                 JOptionPane.showMessageDialog(null, status);
             }

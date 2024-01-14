@@ -5,6 +5,7 @@ import java.rmi.Naming;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.Map;
 import java.util.UUID;
 
 
@@ -13,6 +14,8 @@ public class TicTacToeServer extends UnicastRemoteObject implements TicTacToeGam
 
     private ConcurrentHashMap<UUID, char[][]> gameBoards = new ConcurrentHashMap<>();
     private ConcurrentHashMap<UUID, Character> currentPlayers = new ConcurrentHashMap<>();
+    private Map<UUID, GameSession> sessions = new ConcurrentHashMap<>();
+    private UUID waitingPlayer = null; // Stores the ID of a player waiting for an opponent
 
     protected TicTacToeServer() throws RemoteException {
         super();
@@ -20,17 +23,21 @@ public class TicTacToeServer extends UnicastRemoteObject implements TicTacToeGam
 
     @Override
     public UUID startNewGame() throws RemoteException {
-        UUID gameId = UUID.randomUUID();
-        char[][] board = new char[3][3];
-        for (int i = 0; i < 3; i++) {
-            for (int j = 0; j < 3; j++) {
-                board[i][j] = ' ';
-            }
+        UUID playerId = UUID.randomUUID();
+        if (waitingPlayer == null) {
+            // No waiting player, create new session
+            waitingPlayer = playerId;
+            return playerId;
+        } else {
+            // Pair with waiting player
+            GameSession session = new GameSession(waitingPlayer);
+            sessions.put(session.getSessionId(), session);
+            UUID opponentId = waitingPlayer;
+            waitingPlayer = null;
+            return opponentId;
         }
-        gameBoards.put(gameId, board);
-        currentPlayers.put(gameId, 'X'); // X starts first
-        return gameId;
     }
+ 
 
     @Override
     public synchronized void makeMove(UUID gameId, int x, int y, char playerSymbol) throws RemoteException {
@@ -108,9 +115,9 @@ public class TicTacToeServer extends UnicastRemoteObject implements TicTacToeGam
 
     public static void main(String[] args) {
         try {
-        	LocateRegistry.createRegistry(1099); // Start RMI registry on port 1099
+        	LocateRegistry.createRegistry(1100); // Start RMI registry on port 1099
         	TicTacToeGame game = new TicTacToeServer();
-        	Naming.rebind("//localhost/TicTacToeGame", game);
+        	Naming.rebind("//0.0.0.0:1100/TicTacToeGame", game);
 
             System.out.println("Server is ready.");
         } catch (Exception e) {
