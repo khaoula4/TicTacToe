@@ -17,8 +17,3 @@ This project implements a Tic-Tac-Toe game using Java RMI, created for a Middlew
 - Start a new game or join an existing game using a session ID.
 - Interactive Tic-Tac-Toe board with a graphical user interface.
 - Network communication using Java RMI.
-
-# Collaborators
-- Khaoula Jbari
-- Safae Ajoutate
-- Imrane Asrir
